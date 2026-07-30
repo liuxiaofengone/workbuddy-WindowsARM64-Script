@@ -1,0 +1,21 @@
+appId: com.tencent.workbuddy
+productName: WorkBuddy
+executableName: WorkBuddy
+directories:
+  output: dist
+win:
+  target:
+    - target: nsis
+      arch:
+        - arm64
+  icon: icon.ico
+  forceCodeSigning: false
+  verifyUpdateCodeSignature: false
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: WorkBuddy
+  useZip: true

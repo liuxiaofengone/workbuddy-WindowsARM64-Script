@@ -1,0 +1,29 @@
+# WorkBuddy Windows ARM64 Build System .gitignore
+
+# Dependencies & temporary build workspace
+node_modules/
+build_sqlite/
+build_workspace/
+app_extracted/
+inspect_setup/
+unpacked/
+cache/
+
+# Output directories & standalone runtimes
+WorkBuddy-win32-arm64/
+dist/
+
+# Large binary installer / archive downloads
+*.exe
+*.zip
+*.7z
+
+# Python cache & logs
+__pycache__/
+*.pyc
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+.system_generated/
