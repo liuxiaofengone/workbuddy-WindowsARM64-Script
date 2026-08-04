@@ -373,6 +373,32 @@ def prepare_arm64_runtime(electron_version: str, source_extracted_dir: str):
         with open(target_rg, 'wb') as f:
             f.write(rg_bytes)
         print(f"[+] Patched ARM64 rg.exe -> {target_rg}")
+        
+    # 6. Patch app.asar with custom ARM64 in-app update handler
+    target_app_asar = os.path.join(dst_resources, "app.asar")
+    from patch_asar_win32_updater import patch_app_asar_win32_updater
+    print(f"[*] Applying ARM64 In-App Update Handler patch to app.asar...")
+    patch_app_asar_win32_updater(target_app_asar)
+    
+    # 7. Embed ARM64 Updater Toolchain into $INSTDIR/tools/arm64_updater/
+    tools_updater_dir = os.path.join(TARGET_ARM64_DIR, "tools", "arm64_updater")
+    print(f"[*] Embedding ARM64 Updater Toolchain -> {tools_updater_dir}")
+    os.makedirs(tools_updater_dir, exist_ok=True)
+    
+    files_to_embed = [
+        "build_workbuddy_arm64.py",
+        "build.bat",
+        "icon.ico",
+        "patch_asar_win32_updater.py",
+        "create_bulletproof_bat.py",
+        "README_BUILD.md",
+        "README.md"
+    ]
+    for f in files_to_embed:
+        src = os.path.join(BASE_DIR, f)
+        if os.path.exists(src):
+            shutil.copy(src, os.path.join(tools_updater_dir, f))
+    print("[+] Successfully embedded ARM64 Updater Toolchain into installation directory!")
 
 def generate_nsi_script(version: str) -> str:
     print_header("Step 5: Generating NSIS Installer Script (UTF-8 BOM)")
