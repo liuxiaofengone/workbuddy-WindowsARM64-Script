@@ -327,15 +327,15 @@ def prepare_arm64_runtime(electron_version: str, source_extracted_dir: str):
         os.rename(old_exe, new_exe)
         print("[+] Renamed electron.exe -> WorkBuddy.exe")
         
-    # 2. Embed official WorkBuddy icon into WorkBuddy.exe PE Header via rcedit
+    # 2. Embed official WorkBuddy icon and Version Info into WorkBuddy.exe PE Header via rcedit
     icon_path = os.path.join(BASE_DIR, "icon.ico")
     if os.path.exists(icon_path):
-        print(f"[*] Embedding PE Header Icon: {icon_path} -> WorkBuddy.exe")
+        print(f"[*] Embedding PE Header Icon & Version Strings: {icon_path} -> WorkBuddy.exe")
         new_exe_posix = pathlib.Path(new_exe).as_posix()
         icon_posix = pathlib.Path(icon_path).as_posix()
-        node_cmd = f"const {{ rcedit }} = require('rcedit'); rcedit('{new_exe_posix}', {{ icon: '{icon_posix}' }});"
+        node_cmd = f"const {{ rcedit }} = require('rcedit'); rcedit('{new_exe_posix}', {{ icon: '{icon_posix}', 'version-string': {{ CompanyName: 'Tencent Technology (Shenzhen) Company Limited', FileDescription: 'WorkBuddy Desktop - AI Agent Desktop Application', LegalCopyright: 'Copyright 2026 Tencent Technology (Shenzhen) Company Limited', ProductName: 'WorkBuddy', InternalName: 'WorkBuddy.exe', OriginalFilename: 'WorkBuddy.exe' }} }});"
         subprocess.run(["node", "-e", node_cmd], cwd=BUILD_TOOLS_DIR, check=True)
-        print("[+] Embedded official WorkBuddy icon into WorkBuddy.exe PE Header!")
+        print("[+] Embedded official WorkBuddy Icon & Version Metadata into WorkBuddy.exe PE Header!")
         shutil.copy(icon_path, os.path.join(TARGET_ARM64_DIR, "icon.ico"))
         
     # 3. Copy app resources from unpacked x64
