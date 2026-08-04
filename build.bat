@@ -1,30 +1,38 @@
 @echo off
-chcp 65001 >nul
-title WorkBuddy Windows ARM64 ä¸€é”®åŽŸç”Ÿæž„å»ºå·¥å…·
+title WorkBuddy Windows ARM64 Ò»¼üÔ­Éú¹¹½¨¹¤¾ß
 
 echo ================================================================================
-echo           WorkBuddy Windows ARM64 åŽŸç”Ÿåº”ç”¨ä¸€é”®æž„å»ºå·¥å…·
+echo           WorkBuddy Windows ARM64 Ô­ÉúÓ¦ÓÃÒ»¼ü¹¹½¨¹¤¾ß
 echo ================================================================================
 echo.
-echo æœ¬å·¥å…·å°†è‡ªåŠ¨æ£€æµ‹çŽ¯å¢ƒã€ä»Žå®˜æ–¹ API èŽ·å–æœ€æ–° WorkBuddy å‘å¸ƒç‰ˆæœ¬ã€
-echo è§£åŒ…å¹¶é‡ç¼–è¯‘ better-sqlite3 C++ æ’ä»¶ã€é‡å†™ WorkBuddy.exe å›¾æ ‡ Header å¹¶æ‰“åŒ…ã€‚
+echo ±¾¹¤¾ß½«×Ô¶¯¼ì²â»·¾³¡¢´Ó¹Ù·½ API »ñÈ¡×îÐÂ WorkBuddy ·¢²¼°æ±¾¡¢
+echo ½â°ü²¢ÖØ±àÒë better-sqlite3 C++ ²å¼þ¡¢ÖØÔØ WorkBuddy.exe Í¼±ê²¢´ò°ü¡£
 echo.
 
-set "PROXY_PORT="
-set /p PROXY_PORT="è¯·è¾“å…¥æœ¬åœ° HTTP/HTTPS ä»£ç†ç«¯å£å· (ä¾‹å¦‚ 7890ï¼Œç›´æŽ¥æŒ‰å›žè½¦è¡¨ç¤ºä¸ä½¿ç”¨ä»£ç†): "
+where python >nul 2>nul
+if %errorlevel% neq 0 (
+    echo [!] ´íÎó: Î´¼ì²âµ½ Python »·¾³£¡
+    echo     ÇëÏÈ°²×° Python 3.8+ ²¢¹´Ñ¡ "Add Python to PATH"¡£
+    echo.
+    pause
+    exit /b 1
+)
+
+set PROXY_PORT=
+set /p PROXY_PORT="ÇëÊäÈë±¾µØ HTTP/HTTPS ´úÀí¶Ë¿ÚºÅ (ÀýÈç 7890£¬Ö±½Ó°´»Ø³µ±íÊ¾²»Ê¹ÓÃ´úÀí): "
 
 if "%PROXY_PORT%"=="" (
     echo.
-    echo [*] æœªè¾“å…¥ä»£ç†ç«¯å£ï¼Œä½¿ç”¨ç½‘ç»œç›´è¿žæ¨¡å¼ (No Proxy)...
+    echo [*] Î´ÊäÈë´úÀí¶Ë¿Ú£¬Ê¹ÓÃÍøÂçÖ±Á¬Ä£Ê½ (No Proxy)...
     python "%~dp0build_workbuddy_arm64.py"
 ) else (
     echo.
-    echo [+] å·²å¯ç”¨æœ¬åœ°ä»£ç†: http://127.0.0.1:%PROXY_PORT%
+    echo [+] ÒÑÆôÓÃ±¾µØ´úÀí: http://127.0.0.1:%PROXY_PORT%
     python "%~dp0build_workbuddy_arm64.py" --proxy "http://127.0.0.1:%PROXY_PORT%"
 )
 
 echo.
 echo ================================================================================
-echo   ä¸€é”®æž„å»ºå·²å®Œæˆï¼è¯·æ£€æŸ¥ä¸Šæ–¹æ—¥å¿—æˆ– dist ç›®å½•ä¸­çš„å®‰è£…åŒ…æ–‡ä»¶ã€‚
+echo   Ò»¼ü¹¹½¨ÒÑÍê³É£¡Çë¼ì²éÉÏ·½ÈÕÖ¾»ò dist Ä¿Â¼ÖÐµÄ°²×°°üÎÄ¼þ¡£
 echo ================================================================================
 pause
