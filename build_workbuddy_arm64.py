@@ -83,6 +83,20 @@ def download_file(url: str, target_path: str):
             shutil.copyfileobj(resp, out_f)
     print(f"[+] Download complete. ({os.path.getsize(target_path)} bytes)")
 
+def find_makensis() -> Optional[str]:
+    in_path = shutil.which("makensis")
+    if in_path:
+        return in_path
+    
+    local_app_data = os.environ.get("LOCALAPPDATA", "")
+    if local_app_data:
+        cache_dir = os.path.join(local_app_data, "electron-builder", "Cache", "nsis")
+        if os.path.exists(cache_dir):
+            for root, dirs, files in os.walk(cache_dir):
+                if "makensis.exe" in files:
+                    return os.path.join(root, "makensis.exe")
+    return None
+
 def check_prerequisites():
     print_header("Step 0: Checking System Environment & Prerequisites")
     
@@ -124,20 +138,55 @@ def platform_arch() -> str:
     machine = struct.calcsize("P") * 8
     return "ARM64" if "ARM64" in sys.version.upper() or "AARCH64" in sys.version.upper() else f"x{machine}"
 
-def find_makensis() -> Optional[str]:
-    in_path = shutil.which("makensis")
-    if in_path:
-        return in_path
-    
-    # Check electron-builder cache
+def parse_version_tuple(ver_str: str) -> tuple:
+    import re
+    digits = re.findall(r'\d+', ver_str)
+    return tuple(int(d) for d in digits)
+
+def compare_versions(ver1: str, ver2: str) -> int:
+    t1 = parse_version_tuple(ver1)
+    t2 = parse_version_tuple(ver2)
+    if t1 > t2:
+        return 1
+    elif t1 < t2:
+        return -1
+    else:
+        return 0
+
+def get_installed_workbuddy_version() -> Tuple[Optional[str], Optional[str]]:
+    """Returns (version_string, install_path) of currently installed WorkBuddy on Windows."""
+    # 1. Query Windows Registry
+    import winreg
+    keys = [
+        (winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy'),
+        (winreg.HKEY_LOCAL_MACHINE, r'Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy')
+    ]
+    for root, path in keys:
+        try:
+            with winreg.OpenKey(root, path) as k:
+                ver, _ = winreg.QueryValueEx(k, 'DisplayVersion')
+                inst_dir, _ = winreg.QueryValueEx(k, 'InstallLocation')
+                if ver:
+                    return str(ver), str(inst_dir)
+        except Exception:
+            pass
+            
+    # 2. Fallback check local appdata directory
     local_app_data = os.environ.get("LOCALAPPDATA", "")
     if local_app_data:
-        cache_dir = os.path.join(local_app_data, "electron-builder", "Cache", "nsis")
-        if os.path.exists(cache_dir):
-            for root, dirs, files in os.walk(cache_dir):
-                if "makensis.exe" in files:
-                    return os.path.join(root, "makensis.exe")
-    return None
+        app_asar = os.path.join(local_app_data, "Programs", "WorkBuddy", "resources", "app.asar")
+        if os.path.exists(app_asar):
+            with open(app_asar, 'rb') as f:
+                content = f.read()
+                pkg_idx = content.find(b'"version"')
+                if pkg_idx != -1:
+                    snippet = content[pkg_idx:pkg_idx+200].decode('utf-8', errors='ignore')
+                    import re
+                    m = re.search(r'"version"\s*:\s*"([0-9\.]+)"', snippet)
+                    if m:
+                        return m.group(1), os.path.dirname(os.path.dirname(app_asar))
+            
+    return None, None
 
 def fetch_latest_release_info() -> Tuple[str, str]:
     print_header("Step 1: Detecting Latest WorkBuddy Release Info")
@@ -479,18 +528,44 @@ def main():
     parser = argparse.ArgumentParser(description="WorkBuddy Windows ARM64 Automated Build System")
     parser.add_argument("--proxy", type=str, default="", help="HTTP/HTTPS Proxy URL (e.g. http://127.0.0.1:7890)")
     parser.add_argument("--skip-download", action="store_true", help="Skip downloading x64 installer if already present")
+    parser.add_argument("--force", action="store_true", help="Force download and rebuild even if local version is up to date")
     args = parser.parse_args()
 
     setup_proxy(args.proxy)
     check_prerequisites()
     
-    version, download_url = fetch_latest_release_info()
+    online_version, download_url = fetch_latest_release_info()
+    installed_version, install_path = get_installed_workbuddy_version()
     
-    installer_exe = os.path.join(CACHE_DIR, f"WorkBuddy-win32-x64-user-{version}.exe")
+    print_header("Version Check & Upgrade Status")
+    if installed_version:
+        print(f"[+] 当前系统已安装版本: v{installed_version}")
+        print(f"[+] 线上最新版本:         v{online_version}")
+        cmp_result = compare_versions(online_version, installed_version)
+        if cmp_result > 0:
+            print("\n" + "!" * 80)
+            print("  [!] 检测到 WorkBuddy 有最新版本发布！")
+            print(f"      线上版本 v{online_version} 高于本地已安装版本 v{installed_version}。")
+            print("      提示：在生成并运行最新 ARM64 安装包前，建议您先卸载或关闭当前系统中的旧版本！")
+            print("!" * 80 + "\n")
+        elif cmp_result == 0:
+            print(f"[*] 当前系统已安装的 WorkBuddy (v{installed_version}) 已是最新版本。")
+            if not args.force and not args.skip_download:
+                print("    如果您仍需重新构建原生包，请使用 --force 参数强行重新构建。")
+                ans = input("是否继续重新构建原生安装包? (y/N): ").strip().lower()
+                if ans != 'y':
+                    print("[*] 已取消构建。")
+                    sys.exit(0)
+        else:
+            print(f"[*] 当前系统已安装版本 (v{installed_version}) 高于或等于线上版本 (v{online_version})。")
+    else:
+        print(f"[+] 未检测到系统已安装的 WorkBuddy。将开始构建最新原生版本 (v{online_version})。")
+    
+    installer_exe = os.path.join(CACHE_DIR, f"WorkBuddy-win32-x64-user-{online_version}.exe")
     if not args.skip_download or not os.path.exists(installer_exe):
         download_file(download_url, installer_exe)
         
-    extracted_dir = os.path.join(WORK_DIR, f"extracted_{version}")
+    extracted_dir = os.path.join(WORK_DIR, f"extracted_{online_version}")
     unpack_installer(installer_exe, extracted_dir)
     
     resources_dir = find_resources_dir(extracted_dir)
@@ -499,8 +574,8 @@ def main():
     build_better_sqlite3_arm64(electron_ver)
     prepare_arm64_runtime(electron_ver, extracted_dir)
     
-    nsi_script = generate_nsi_script(version)
-    compile_nsis_installer(nsi_script, version)
+    nsi_script = generate_nsi_script(online_version)
+    compile_nsis_installer(nsi_script, online_version)
     
     audit_binary_architectures()
 
