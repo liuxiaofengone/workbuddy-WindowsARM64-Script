@@ -18,19 +18,24 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-set PROXY_PORT=
+set "PROXY_PORT="
 set /p PROXY_PORT="请输入本地 HTTP/HTTPS 代理端口号 (例如 7890，直接按回车表示不使用代理): "
 
-if "%PROXY_PORT%"=="" (
-    echo.
-    echo [*] 未输入代理端口，使用网络直连模式 (No Proxy)...
-    python "%~dp0build_workbuddy_arm64.py"
-) else (
-    echo.
-    echo [+] 已启用本地代理: http://127.0.0.1:%PROXY_PORT%
-    python "%~dp0build_workbuddy_arm64.py" --proxy "http://127.0.0.1:%PROXY_PORT%"
-)
+if not defined PROXY_PORT goto NOPROXY
+if "%PROXY_PORT%"=="" goto NOPROXY
 
+echo.
+echo [+] 已启用本地代理: http://127.0.0.1:%PROXY_PORT%
+python "%~dp0build_workbuddy_arm64.py" --proxy "http://127.0.0.1:%PROXY_PORT%"
+goto END
+
+:NOPROXY
+echo.
+echo [*] 未输入代理端口，使用网络直连模式 (No Proxy)...
+python "%~dp0build_workbuddy_arm64.py"
+goto END
+
+:END
 echo.
 echo ================================================================================
 echo   一键构建已完成！请检查上方日志或 dist 目录中的安装包文件。
