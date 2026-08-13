@@ -448,7 +448,16 @@ RequestExecutionLevel user
 Section "MainSection" SEC01
   SetOutPath "$INSTDIR"
   
-  ; Stop all running WorkBuddy processes before overwrite
+  ; Auto-detect installed version and run silent uninstall before installing new version
+  ReadRegStr $0 HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\WorkBuddy" "UninstallString"
+  ReadRegStr $1 HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\WorkBuddy" "DisplayVersion"
+  
+  IfFileExists "$0" 0 +4
+    DetailPrint "正在安全卸载旧版本 WorkBuddy (v$1)..."
+    ExecWait '"$0" /S _?=$INSTDIR'
+    Sleep 1000
+
+  ; Stop all running WorkBuddy processes before file extraction
   ExecWait 'taskkill /F /T /IM WorkBuddy.exe'
   ExecWait 'taskkill /F /T /IM WorkBuddyRepair.exe'
   ExecWait 'taskkill /F /T /IM qm-helper.exe'
@@ -551,11 +560,21 @@ def audit_binary_architectures():
     for b in arm64_binaries[:10]:
         print(f"      - {b}")
 
+def launch_installer(target_exe: str):
+    print_header("Step 8: Auto-launching New ARM64 Installer for Smooth Upgrade")
+    if os.path.exists(target_exe):
+        print(f"[*] Launching new ARM64 installer package: {target_exe}")
+        subprocess.Popen([target_exe], shell=True)
+        print("[+] Installer launched successfully! Please follow the installer prompts.")
+    else:
+        print(f"[!] Target installer executable not found: {target_exe}")
+
 def main():
     parser = argparse.ArgumentParser(description="WorkBuddy Windows ARM64 Automated Build System")
     parser.add_argument("--proxy", type=str, default="", help="HTTP/HTTPS Proxy URL (e.g. http://127.0.0.1:7890)")
     parser.add_argument("--skip-download", action="store_true", help="Skip downloading x64 installer if already present")
     parser.add_argument("--force", action="store_true", help="Force download and rebuild even if local version is up to date")
+    parser.add_argument("--no-launch", action="store_true", help="Do not automatically launch the generated installer package after build completion")
     args = parser.parse_args()
 
     setup_proxy(args.proxy)
@@ -573,7 +592,7 @@ def main():
             print("\n" + "!" * 80)
             print("  [!] 检测到 WorkBuddy 有最新版本发布！")
             print(f"      线上版本 v{online_version} 高于本地已安装版本 v{installed_version}。")
-            print("      提示：在生成并运行最新 ARM64 安装包前，建议您先卸载或关闭当前系统中的旧版本！")
+            print("      提示：本升级构建完成后，将自动执行安全卸载旧版本并拉起全新 ARM64 安装程序平滑升级！")
             print("!" * 80 + "\n")
         elif cmp_result == 0:
             print(f"[*] 当前系统已安装的 WorkBuddy (v{installed_version}) 已是最新版本。")
@@ -605,6 +624,10 @@ def main():
     compile_nsis_installer(nsi_script, online_version)
     
     audit_binary_architectures()
+
+    target_setup_exe = os.path.join(DIST_DIR, f"WorkBuddy Setup {online_version} (ARM64).exe")
+    if not args.no_launch:
+        launch_installer(target_setup_exe)
 
 if __name__ == "__main__":
     main()

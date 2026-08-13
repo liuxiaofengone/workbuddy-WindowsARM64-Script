@@ -6,8 +6,8 @@ SetCompressor zlib
 !include "FileFunc.nsh"
 
 Name "WorkBuddy"
-Caption "WorkBuddy 5.3.11.35348084 安装向导"
-OutFile "c:\Developer\Personal\workbuddy-windowsarm64\dist\WorkBuddy Setup 5.3.11.35348084 (ARM64).exe"
+Caption "WorkBuddy 5.3.12.35805101 安装向导"
+OutFile "c:\Developer\Personal\workbuddy-windowsarm64\dist\WorkBuddy Setup 5.3.12.35805101 (ARM64).exe"
 InstallDir "$LOCALAPPDATA\Programs\WorkBuddy"
 InstallDirRegKey HKCU "Software\WorkBuddy" "InstallLocation"
 RequestExecutionLevel user
@@ -36,7 +36,16 @@ RequestExecutionLevel user
 Section "MainSection" SEC01
   SetOutPath "$INSTDIR"
   
-  ; Stop all running WorkBuddy processes before overwrite
+  ; Auto-detect installed version and run silent uninstall before installing new version
+  ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "UninstallString"
+  ReadRegStr $1 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayVersion"
+  
+  IfFileExists "$0" 0 +4
+    DetailPrint "正在安全卸载旧版本 WorkBuddy (v$1)..."
+    ExecWait '"$0" /S _?=$INSTDIR'
+    Sleep 1000
+
+  ; Stop all running WorkBuddy processes before file extraction
   ExecWait 'taskkill /F /T /IM WorkBuddy.exe'
   ExecWait 'taskkill /F /T /IM WorkBuddyRepair.exe'
   ExecWait 'taskkill /F /T /IM qm-helper.exe'
@@ -57,7 +66,7 @@ Section "MainSection" SEC01
   WriteUninstaller "$INSTDIR\Uninstall WorkBuddy.exe"
   WriteRegStr HKCU "Software\WorkBuddy" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayName" "WorkBuddy"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayVersion" "5.3.11.35348084"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayVersion" "5.3.12.35805101"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "Publisher" "Tencent Technology (Shenzhen) Company Limited"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "UninstallString" '"$INSTDIR\Uninstall WorkBuddy.exe"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayIcon" "$INSTDIR\WorkBuddy.exe"
