@@ -63,6 +63,7 @@ def setup_proxy(proxy_url: Optional[str]):
 def download_file(url: str, target_path: str):
     print(f"[*] Downloading: {url}")
     print(f"    -> Destination: {target_path}")
+    os.makedirs(os.path.dirname(os.path.abspath(target_path)), exist_ok=True)
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
     with urllib.request.urlopen(req) as resp, open(target_path, 'wb') as out_f:
         total_length = resp.headers.get('content-length')
