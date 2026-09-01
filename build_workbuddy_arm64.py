@@ -287,7 +287,7 @@ def build_better_sqlite3_arm64(electron_version: str):
     
     # 2. Rebuild better-sqlite3 for target Electron version & win32-arm64
     print(f"[*] Rebuilding better-sqlite3 for Electron {electron_version} (win32-arm64)...")
-    rebuild_cmd = f"npx @electron/rebuild -v {electron_version} -f -w better-sqlite3"
+    rebuild_cmd = f"npx @electron/rebuild --module-dir . -v {electron_version} -f -w better-sqlite3"
     subprocess.run(rebuild_cmd, cwd=BUILD_TOOLS_DIR, shell=True, check=True)
     
     compiled_node = os.path.join(BUILD_TOOLS_DIR, r"node_modules\better-sqlite3\build\Release\better_sqlite3.node")
