@@ -276,6 +276,19 @@ def build_better_sqlite3_arm64(electron_version: str):
     print_header("Step 3: Compiling Native better-sqlite3 12.8.0 for Windows ARM64")
     os.makedirs(BUILD_TOOLS_DIR, exist_ok=True)
     
+    # 0. Ensure package.json exists in BUILD_TOOLS_DIR so npm and electron-rebuild are anchored here
+    pkg_json_path = os.path.join(BUILD_TOOLS_DIR, "package.json")
+    if not os.path.exists(pkg_json_path):
+        initial_pkg = {
+            "name": "workbuddy-sqlite-builder",
+            "version": "1.0.0",
+            "private": True,
+            "description": "Helper workspace to compile better-sqlite3 for ARM64"
+        }
+        with open(pkg_json_path, "w", encoding="utf-8") as f:
+            json.dump(initial_pkg, f, indent=2)
+        print(f"[+] Initialized package.json in {BUILD_TOOLS_DIR}")
+
     # 1. Install better-sqlite3@12.8.0 & rcedit & @electron/rebuild in build_sqlite
     print("[*] Installing better-sqlite3@12.8.0, rcedit and @electron/rebuild in helper workspace...")
     subprocess.run(
