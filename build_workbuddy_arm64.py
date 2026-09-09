@@ -414,13 +414,54 @@ def prepare_arm64_runtime(electron_version: str, source_extracted_dir: str):
             shutil.copy(src, os.path.join(tools_updater_dir, f))
     print("[+] Successfully embedded ARM64 Updater Toolchain into installation directory!")
 
-def generate_nsi_script(version: str) -> str:
+def find_available_drive_letter() -> Optional[str]:
+    import string, ctypes
+    bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+    for letter in reversed(string.ascii_uppercase):
+        if letter in ('A', 'B', 'C'):
+            continue
+        index = ord(letter) - ord('A')
+        if not (bitmask & (1 << index)):
+            return f"{letter}:"
+    return None
+
+def mount_virtual_drive(target_dir: str) -> Optional[str]:
+    drive = find_available_drive_letter()
+    if not drive:
+        print("[!] No available virtual drive letter found.")
+        return None
+    try:
+        subprocess.run(f"subst {drive} /d", shell=True, capture_output=True)
+        res = subprocess.run(f'subst {drive} "{target_dir}"', shell=True, capture_output=True, text=True)
+        if res.returncode == 0:
+            print(f"[+] Mounted virtual drive {drive} -> {target_dir} (bypasses Windows MAX_PATH 260 limit)")
+            return drive
+        else:
+            print(f"[!] Warning: subst failed: {res.stderr.strip()}")
+            return None
+    except Exception as e:
+        print(f"[!] Warning: subst exception: {e}")
+        return None
+
+def unmount_virtual_drive(drive: str):
+    try:
+        subprocess.run(f"subst {drive} /d", shell=True, capture_output=True)
+        print(f"[+] Unmounted virtual drive {drive}")
+    except Exception:
+        pass
+
+def generate_nsi_script(version: str, source_root: Optional[str] = None) -> str:
     print_header("Step 5: Generating NSIS Installer Script (UTF-8 BOM)")
     nsi_path = os.path.join(BASE_DIR, "installer.nsi")
     dist_setup_exe = os.path.join(DIST_DIR, f"WorkBuddy Setup {version} (ARM64).exe")
     os.makedirs(DIST_DIR, exist_ok=True)
     
     icon_path = os.path.join(BASE_DIR, "icon.ico")
+    files_source = source_root if source_root else TARGET_ARM64_DIR
+    if files_source.endswith("\\"):
+        files_pattern = f"{files_source}*.*"
+    else:
+        files_pattern = f"{files_source}\\*.*"
     
     nsi_content = f"""\
 ; WorkBuddy Windows ARM64 NSIS Installer Script (UTF-8 BOM Standard)
@@ -480,7 +521,7 @@ Section "MainSection" SEC01
   Sleep 1000
   
   ; Extract all application files
-  File /r "{TARGET_ARM64_DIR}\\*.*"
+  File /r "{files_pattern}"
   
   ; Create Shortcuts
   CreateDirectory "$SMPROGRAMS\\WorkBuddy"
@@ -633,8 +674,15 @@ def main():
     build_better_sqlite3_arm64(electron_ver)
     prepare_arm64_runtime(electron_ver, extracted_dir)
     
-    nsi_script = generate_nsi_script(online_version)
-    compile_nsis_installer(nsi_script, online_version)
+    # Map TARGET_ARM64_DIR to a virtual drive (e.g. W:) to avoid Windows MAX_PATH (260 chars) limitation in makensis
+    virtual_drive = mount_virtual_drive(TARGET_ARM64_DIR)
+    source_root = f"{virtual_drive}\\" if virtual_drive else TARGET_ARM64_DIR
+    try:
+        nsi_script = generate_nsi_script(online_version, source_root)
+        compile_nsis_installer(nsi_script, online_version)
+    finally:
+        if virtual_drive:
+            unmount_virtual_drive(virtual_drive)
     
     audit_binary_architectures()
 
