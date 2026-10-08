@@ -119,6 +119,15 @@ def patch_app_asar_win32_updater(app_asar_path: str) -> bool:
     
     new_content = content[:idx_start] + final_block + content[idx_end:]
     
+    # 2. Patch storage bootstrap failure check to prevent "Workbuddy 关键组件加载失败" popup
+    storage_pattern = b'function isStorageBootstrapLoggerGetFailed(){return loggerGetFailed}'
+    storage_replace = b'function isStorageBootstrapLoggerGetFailed(){return!1;/*loggerGet*/}'
+    if len(storage_pattern) == len(storage_replace):
+        idx_storage = new_content.find(storage_pattern)
+        if idx_storage != -1:
+            new_content = new_content[:idx_storage] + storage_replace + new_content[idx_storage + len(storage_pattern):]
+            print(f"[+] Successfully patched isStorageBootstrapLoggerGetFailed at offset {idx_storage} to prevent false positive warning dialog!")
+    
     with open(app_asar_path, 'wb') as f:
         f.write(new_content)
         
