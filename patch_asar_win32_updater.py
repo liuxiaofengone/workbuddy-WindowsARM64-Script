@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 
 def patch_app_asar_win32_updater(app_asar_path: str) -> bool:
     print(f"[*] Inspecting app.asar for Direct Connection (直连) ARM64 Win32 Update Service patch: {app_asar_path}")
@@ -15,17 +16,17 @@ def patch_app_asar_win32_updater(app_asar_path: str) -> bool:
         print("[!] [UpdateService.win32] marker not found in app.asar")
         return False
         
-    pattern_start = b'async checkForUpdates(explicit = false) {'
-    idx_start = content.find(pattern_start, idx_win32)
-    if idx_start == -1:
+    m_check = re.search(rb'async\s+checkForUpdates\s*\([^\)]*\)\s*\{', content[idx_win32:idx_win32+20000])
+    if not m_check:
         print("[!] checkForUpdates start pattern not found in Win32 UpdateService")
         return False
+    idx_start = idx_win32 + m_check.start()
         
-    pattern_end = b'async downloadUpdate(updateInfo) {'
-    idx_end = content.find(pattern_end, idx_start)
-    if idx_end == -1:
+    m_dl = re.search(rb'async\s+downloadUpdate\s*\([^\)]*\)\s*\{', content[idx_start:idx_start+20000])
+    if not m_dl:
         print("[!] downloadUpdate pattern not found after Win32 checkForUpdates")
         return False
+    idx_end = idx_start + m_dl.start()
         
     target_block = content[idx_start:idx_end]
     target_len = len(target_block)
@@ -41,6 +42,9 @@ def patch_app_asar_win32_updater(app_asar_path: str) -> bool:
         '\t\t\tconst curVer = this.version || "5.3.8";\n'
         '\t\t\tconst feedUrl = "https://www.workbuddy.cn/v2/update?platform=workbuddy-win32-x64-user";\n'
         '\t\t\tconst h = require("https");\n'
+        '\t\t\tconst _path = require("path");\n'
+        '\t\t\tconst _fs = require("fs");\n'
+        '\t\t\tconst _el = typeof electron !== "undefined" ? electron : require("electron");\n'
         '\t\t\tconst req = h.get(feedUrl, { headers: { "User-Agent": "Mozilla/5.0" } }, (res) => {\n'
         '\t\t\t\tlet body = "";\n'
         '\t\t\t\tres.on("data", c => body += c);\n'
@@ -49,7 +53,7 @@ def patch_app_asar_win32_updater(app_asar_path: str) -> bool:
         '\t\t\t\t\t\tconst data = JSON.parse(body);\n'
         '\t\t\t\t\t\tconst onlineVer = data.version || data.productVersion || "";\n'
         '\t\t\t\t\t\tif (onlineVer && this.isNewVersion(onlineVer, curVer)) {\n'
-        '\t\t\t\t\t\t\tconst btn = electron.dialog.showMessageBoxSync({\n'
+        '\t\t\t\t\t\t\tconst btn = _el.dialog.showMessageBoxSync({\n'
         '\t\t\t\t\t\t\t\ttype: "info",\n'
         '\t\t\t\t\t\t\t\tbuttons: ["立即启动原生 ARM64 一键升级引擎", "稍后提醒"],\n'
         '\t\t\t\t\t\t\t\tdefaultId: 0,\n'
@@ -58,16 +62,16 @@ def patch_app_asar_win32_updater(app_asar_path: str) -> bool:
         '\t\t\t\t\t\t\t\tdetail: "点击“确认”将自动启动 ARM64 原生下载重编译与打包升级程序！"\n'
         '\t\t\t\t\t\t\t});\n'
         '\t\t\t\t\t\t\tif (btn === 0) {\n'
-        '\t\t\t\t\t\t\t\tconst toolsDir = path.join(process.resourcesPath, "..", "tools", "arm64_updater");\n'
-        '\t\t\t\t\t\t\t\tconst updaterBat = path.join(toolsDir, "build.bat");\n'
-        '\t\t\t\t\t\t\t\tif (fs.existsSync(updaterBat)) {\n'
+        '\t\t\t\t\t\t\t\tconst toolsDir = _path.join(process.resourcesPath, "..", "tools", "arm64_updater");\n'
+        '\t\t\t\t\t\t\t\tconst updaterBat = _path.join(toolsDir, "build.bat");\n'
+        '\t\t\t\t\t\t\t\tif (_fs.existsSync(updaterBat)) {\n'
         '\t\t\t\t\t\t\t\t\trequire("child_process").spawn("cmd.exe", ["/c", "start", "cmd.exe", "/k", updaterBat], { detached: true, stdio: "ignore" });\n'
         '\t\t\t\t\t\t\t\t} else {\n'
-        '\t\t\t\t\t\t\t\t\telectron.shell.openExternal("https://github.com/liuxiaofengone/workbuddy-WindowsARM64-Script");\n'
+        '\t\t\t\t\t\t\t\t\t_el.shell.openExternal("https://github.com/liuxiaofengone/workbuddy-WindowsARM64-Script");\n'
         '\t\t\t\t\t\t\t\t}\n'
         '\t\t\t\t\t\t\t}\n'
         '\t\t\t\t\t\t} else if (explicit) {\n'
-        '\t\t\t\t\t\t\telectron.dialog.showMessageBoxSync({\n'
+        '\t\t\t\t\t\t\t_el.dialog.showMessageBoxSync({\n'
         '\t\t\t\t\t\t\t\ttype: "info",\n'
         '\t\t\t\t\t\t\t\tbuttons: ["确定"],\n'
         '\t\t\t\t\t\t\t\ttitle: "检查更新",\n'
@@ -80,7 +84,7 @@ def patch_app_asar_win32_updater(app_asar_path: str) -> bool:
         '\t\t\t});\n'
         '\t\t\treq.on("error", () => {\n'
         '\t\t\t\tif (explicit) {\n'
-        '\t\t\t\t\telectron.dialog.showMessageBoxSync({\n'
+        '\t\t\t\t\t_el.dialog.showMessageBoxSync({\n'
         '\t\t\t\t\t\ttype: "warning",\n'
         '\t\t\t\t\t\tbuttons: ["确定"],\n'
         '\t\t\t\t\t\ttitle: "检查更新",\n'
@@ -120,13 +124,21 @@ def patch_app_asar_win32_updater(app_asar_path: str) -> bool:
     new_content = content[:idx_start] + final_block + content[idx_end:]
     
     # 2. Patch storage bootstrap failure check to prevent "Workbuddy 关键组件加载失败" popup
-    storage_pattern = b'function isStorageBootstrapLoggerGetFailed(){return loggerGetFailed}'
-    storage_replace = b'function isStorageBootstrapLoggerGetFailed(){return!1;/*loggerGet*/}'
-    if len(storage_pattern) == len(storage_replace):
-        idx_storage = new_content.find(storage_pattern)
-        if idx_storage != -1:
-            new_content = new_content[:idx_storage] + storage_replace + new_content[idx_storage + len(storage_pattern):]
-            print(f"[+] Successfully patched isStorageBootstrapLoggerGetFailed at offset {idx_storage} to prevent false positive warning dialog!")
+    m_storage = re.search(rb'function\s+isStorageBootstrapLoggerGetFailed\s*\(\)\s*\{\s*return\s+loggerGetFailed\s*\}', new_content)
+    if m_storage:
+        s_start = m_storage.start()
+        s_end = m_storage.end()
+        s_len = s_end - s_start
+        rep = b'function isStorageBootstrapLoggerGetFailed(){return!1;}'
+        if len(rep) <= s_len:
+            pad = s_len - len(rep)
+            if pad >= 4:
+                rep_block = b'function isStorageBootstrapLoggerGetFailed(){return!1;/*' + (b'*' * (pad - 4)) + b'*/}'
+            else:
+                rep_block = b'function isStorageBootstrapLoggerGetFailed(){return!1;}' + (b' ' * pad)
+            assert len(rep_block) == s_len
+            new_content = new_content[:s_start] + rep_block + new_content[s_end:]
+            print(f"[+] Successfully patched isStorageBootstrapLoggerGetFailed at offset {s_start} to prevent false positive warning dialog!")
     
     with open(app_asar_path, 'wb') as f:
         f.write(new_content)

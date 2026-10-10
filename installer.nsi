@@ -6,8 +6,8 @@ SetCompressor zlib
 !include "FileFunc.nsh"
 
 Name "WorkBuddy"
-Caption "WorkBuddy 5.7.6.40409493 安装向导"
-OutFile "C:\Developer\Personal\workbuddy-windowsarm64\dist\WorkBuddy Setup 5.7.6.40409493 (ARM64).exe"
+Caption "WorkBuddy 5.7.7.40774747 安装向导"
+OutFile "C:\Developer\Personal\workbuddy-windowsarm64\dist\WorkBuddy Setup 5.7.7.40774747 (ARM64).exe"
 InstallDir "$LOCALAPPDATA\Programs\WorkBuddy"
 InstallDirRegKey HKCU "Software\WorkBuddy" "InstallLocation"
 RequestExecutionLevel user
@@ -36,16 +36,7 @@ RequestExecutionLevel user
 Section "MainSection" SEC01
   SetOutPath "$INSTDIR"
   
-  ; Auto-detect installed version and run silent uninstall before installing new version
-  ReadRegStr $0 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "UninstallString"
-  ReadRegStr $1 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayVersion"
-  
-  IfFileExists "$0" 0 +4
-    DetailPrint "正在安全卸载旧版本 WorkBuddy (v$1)..."
-    ExecWait '"$0" /S _?=$INSTDIR'
-    Sleep 1000
-
-  ; Stop all running WorkBuddy processes before file extraction
+  ; Stop all running WorkBuddy processes before uninstall / extraction
   ExecWait 'taskkill /F /T /IM WorkBuddy.exe'
   ExecWait 'taskkill /F /T /IM WorkBuddyRepair.exe'
   ExecWait 'taskkill /F /T /IM qm-helper.exe'
@@ -53,6 +44,13 @@ Section "MainSection" SEC01
   ExecWait 'taskkill /F /T /IM wechatpay-cli.exe'
   ExecWait 'taskkill /F /T /IM agently-cli.exe'
   Sleep 1000
+
+  ; Auto-detect installed version and run silent uninstall before installing new version
+  ReadRegStr $1 HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayVersion"
+  IfFileExists "$INSTDIR\Uninstall WorkBuddy.exe" 0 +4
+    DetailPrint "正在安全卸载旧版本 WorkBuddy (v$1)..."
+    ExecWait '"$INSTDIR\Uninstall WorkBuddy.exe" /S _?=$INSTDIR'
+    Sleep 1000
   
   ; Extract all application files
   File /r "Z:\*.*"
@@ -66,7 +64,7 @@ Section "MainSection" SEC01
   WriteUninstaller "$INSTDIR\Uninstall WorkBuddy.exe"
   WriteRegStr HKCU "Software\WorkBuddy" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayName" "WorkBuddy"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayVersion" "5.7.6.40409493"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayVersion" "5.7.7.40774747"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "Publisher" "Tencent Technology (Shenzhen) Company Limited"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "UninstallString" '"$INSTDIR\Uninstall WorkBuddy.exe"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayIcon" "$INSTDIR\WorkBuddy.exe"

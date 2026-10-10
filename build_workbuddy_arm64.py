@@ -502,16 +502,7 @@ RequestExecutionLevel user
 Section "MainSection" SEC01
   SetOutPath "$INSTDIR"
   
-  ; Auto-detect installed version and run silent uninstall before installing new version
-  ReadRegStr $0 HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\WorkBuddy" "UninstallString"
-  ReadRegStr $1 HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\WorkBuddy" "DisplayVersion"
-  
-  IfFileExists "$0" 0 +4
-    DetailPrint "正在安全卸载旧版本 WorkBuddy (v$1)..."
-    ExecWait '"$0" /S _?=$INSTDIR'
-    Sleep 1000
-
-  ; Stop all running WorkBuddy processes before file extraction
+  ; Stop all running WorkBuddy processes before uninstall / extraction
   ExecWait 'taskkill /F /T /IM WorkBuddy.exe'
   ExecWait 'taskkill /F /T /IM WorkBuddyRepair.exe'
   ExecWait 'taskkill /F /T /IM qm-helper.exe'
@@ -519,6 +510,13 @@ Section "MainSection" SEC01
   ExecWait 'taskkill /F /T /IM wechatpay-cli.exe'
   ExecWait 'taskkill /F /T /IM agently-cli.exe'
   Sleep 1000
+
+  ; Auto-detect installed version and run silent uninstall before installing new version
+  ReadRegStr $1 HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\WorkBuddy" "DisplayVersion"
+  IfFileExists "$INSTDIR\\Uninstall WorkBuddy.exe" 0 +4
+    DetailPrint "正在安全卸载旧版本 WorkBuddy (v$1)..."
+    ExecWait '"$INSTDIR\\Uninstall WorkBuddy.exe" /S _?=$INSTDIR'
+    Sleep 1000
   
   ; Extract all application files
   File /r "{files_pattern}"
@@ -618,7 +616,10 @@ def launch_installer(target_exe: str):
     print_header("Step 8: Auto-launching New ARM64 Installer for Smooth Upgrade")
     if os.path.exists(target_exe):
         print(f"[*] Launching new ARM64 installer package: {target_exe}")
-        subprocess.Popen([target_exe], shell=True)
+        try:
+            os.startfile(target_exe)
+        except Exception:
+            subprocess.Popen(f'start "" "{target_exe}"', shell=True)
         print("[+] Installer launched successfully! Please follow the installer prompts.")
     else:
         print(f"[!] Target installer executable not found: {target_exe}")
