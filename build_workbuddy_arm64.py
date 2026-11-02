@@ -165,27 +165,44 @@ def get_installed_workbuddy_version() -> Tuple[Optional[str], Optional[str]]:
     for root, path in keys:
         try:
             with winreg.OpenKey(root, path) as k:
-                ver, _ = winreg.QueryValueEx(k, 'DisplayVersion')
-                inst_dir, _ = winreg.QueryValueEx(k, 'InstallLocation')
+                ver = None
+                try:
+                    ver, _ = winreg.QueryValueEx(k, 'DisplayVersion')
+                except Exception:
+                    pass
+                inst_dir = None
+                try:
+                    inst_dir, _ = winreg.QueryValueEx(k, 'InstallLocation')
+                except Exception:
+                    pass
+                if not inst_dir:
+                    try:
+                        uninst, _ = winreg.QueryValueEx(k, 'UninstallString')
+                        inst_dir = os.path.dirname(uninst.strip('"'))
+                    except Exception:
+                        pass
+                if not inst_dir:
+                    try:
+                        icon, _ = winreg.QueryValueEx(k, 'DisplayIcon')
+                        inst_dir = os.path.dirname(icon.strip('"'))
+                    except Exception:
+                        pass
                 if ver:
-                    return str(ver), str(inst_dir)
+                    return str(ver), str(inst_dir) if inst_dir else None
         except Exception:
             pass
             
     # 2. Fallback check local appdata directory
     local_app_data = os.environ.get("LOCALAPPDATA", "")
     if local_app_data:
-        app_asar = os.path.join(local_app_data, "Programs", "WorkBuddy", "resources", "app.asar")
+        app_dir = os.path.join(local_app_data, "Programs", "WorkBuddy")
+        app_asar = os.path.join(app_dir, "resources", "app.asar")
         if os.path.exists(app_asar):
             with open(app_asar, 'rb') as f:
-                content = f.read()
-                pkg_idx = content.find(b'"version"')
-                if pkg_idx != -1:
-                    snippet = content[pkg_idx:pkg_idx+200].decode('utf-8', errors='ignore')
-                    import re
-                    m = re.search(r'"version"\s*:\s*"([0-9\.]+)"', snippet)
-                    if m:
-                        return m.group(1), os.path.dirname(os.path.dirname(app_asar))
+                content = f.read(100000)
+                m = re.findall(rb'"version"\s*:\s*"([0-9\.]+)"', content)
+                if m:
+                    return m[0].decode('utf-8'), app_dir
             
     return None, None
 
@@ -391,8 +408,10 @@ def prepare_arm64_runtime(electron_version: str, source_extracted_dir: str):
     # 6. Patch app.asar with custom ARM64 in-app update handler
     target_app_asar = os.path.join(dst_resources, "app.asar")
     from patch_asar_win32_updater import patch_app_asar_win32_updater
-    print(f"[*] Applying ARM64 In-App Update Handler patch to app.asar...")
-    patch_app_asar_win32_updater(target_app_asar)
+    print(f"[*] Applying ARM64 In-App Update Handler and Storage Bootstrap patches to app.asar...")
+    if not patch_app_asar_win32_updater(target_app_asar):
+        print(f"[!] ERROR: Failed to patch {target_app_asar}!")
+        sys.exit(1)
     
     # 7. Embed ARM64 Updater Toolchain into $INSTDIR/tools/arm64_updater/
     tools_updater_dir = os.path.join(TARGET_ARM64_DIR, "tools", "arm64_updater")

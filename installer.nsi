@@ -6,8 +6,8 @@ SetCompressor zlib
 !include "FileFunc.nsh"
 
 Name "WorkBuddy"
-Caption "WorkBuddy 5.7.7.40774747 安装向导"
-OutFile "C:\Developer\Personal\workbuddy-windowsarm64\dist\WorkBuddy Setup 5.7.7.40774747 (ARM64).exe"
+Caption "WorkBuddy 5.9.3.42398134 安装向导"
+OutFile "C:\Developer\Personal\workbuddy-windowsarm64\dist\WorkBuddy Setup 5.9.3.42398134 (ARM64).exe"
 InstallDir "$LOCALAPPDATA\Programs\WorkBuddy"
 InstallDirRegKey HKCU "Software\WorkBuddy" "InstallLocation"
 RequestExecutionLevel user
@@ -64,7 +64,7 @@ Section "MainSection" SEC01
   WriteUninstaller "$INSTDIR\Uninstall WorkBuddy.exe"
   WriteRegStr HKCU "Software\WorkBuddy" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayName" "WorkBuddy"
-  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayVersion" "5.7.7.40774747"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayVersion" "5.9.3.42398134"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "Publisher" "Tencent Technology (Shenzhen) Company Limited"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "UninstallString" '"$INSTDIR\Uninstall WorkBuddy.exe"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\WorkBuddy" "DisplayIcon" "$INSTDIR\WorkBuddy.exe"
